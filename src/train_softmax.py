@@ -115,6 +115,7 @@ def parse_args():
   parser.add_argument('--margin-s', type=float, default=64.0, help='scale for feature')
   parser.add_argument('--margin-a', type=float, default=1.0, help='')
   parser.add_argument('--margin-b', type=float, default=0.0, help='')
+  parser.add_argument('--margin-t', type=float, default=0.0, help='')
   parser.add_argument('--easy-margin', type=int, default=0, help='')
   parser.add_argument('--margin', type=int, default=4, help='margin for sphere')
   parser.add_argument('--beta', type=float, default=1000., help='param for sphere')
@@ -246,6 +247,57 @@ def get_symbol(args, arg_params, aux_params):
     gt_one_hot = mx.sym.one_hot(gt_label, depth = args.num_classes, on_value = 1.0, off_value = 0.0)
     body = mx.sym.broadcast_mul(gt_one_hot, diff)
     fc7 = fc7+body
+  elif args.loss_type==8:  # sv-x-arcface
+    s = args.margin_s
+    m = args.margin_m
+    assert s>0.0
+    assert m>=0.0
+    assert m<(math.pi/2)
+    _weight = mx.symbol.L2Normalization(_weight, mode='instance')
+    nembedding = mx.symbol.L2Normalization(embedding, mode='instance', name='fc1n')*s
+    fc7 = mx.sym.FullyConnected(data=nembedding, weight = _weight, no_bias = True, num_hidden=args.num_classes, name='fc7')
+    zy = mx.sym.pick(fc7, gt_label, axis=1)
+    cos_t = zy/s
+    cos_m = math.cos(m)
+    sin_m = math.sin(m)
+    mm = math.sin(math.pi-m)*m
+    #threshold = 0.0
+    threshold = math.cos(math.pi-m)
+    if args.easy_margin:
+      cond = mx.symbol.Activation(data=cos_t, act_type='relu')
+    else:
+      cond_v = cos_t - threshold
+      cond = mx.symbol.Activation(data=cond_v, act_type='relu')
+    body = cos_t*cos_t
+    body = 1.0-body
+    sin_t = mx.sym.sqrt(body)
+    new_zy = cos_t*cos_m
+    b = sin_t*sin_m
+    new_zy = new_zy - b
+    new_zy = new_zy*s
+    if args.easy_margin:
+      zy_keep = zy
+    else:
+      zy_keep = zy - s*mm
+    new_zy = mx.sym.where(cond, new_zy, zy_keep)
+
+    diff = new_zy - zy
+    diff = mx.sym.expand_dims(diff, 1)
+    gt_one_hot = mx.sym.one_hot(gt_label, depth = args.num_classes, on_value = 1.0, off_value = 0.0)
+    body = mx.sym.broadcast_mul(gt_one_hot, diff)
+    fc7 = fc7+body
+
+    #add sv guide
+    cos_all = fc7/s
+    cos_theta_add_m_gt = mx.sym.pick(cos_all, gt_label, axis=1)
+    cos_theta_add_m_gt = mx.sym.expand_dims(cos_theta_add_m_gt, 1)
+    delta = mx.sym.broadcast_sub(cos_all, cos_theta_add_m_gt)
+    cond_d = mx.symbol.Activation(data=delta, act_type='relu')
+    t = args.margin_t
+    h = s * (t-1) * (cos_all+1)
+    sv_fc7 = mx.sym.elemwise_add(fc7, h)
+    fc7 = mx.sym.where(cond_d, sv_fc7, fc7)
+    
   elif args.loss_type==5:
     s = args.margin_s
     m = args.margin_m
