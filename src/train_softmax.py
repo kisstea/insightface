@@ -115,7 +115,7 @@ def parse_args():
   parser.add_argument('--margin-s', type=float, default=64.0, help='scale for feature')
   parser.add_argument('--margin-a', type=float, default=1.0, help='')
   parser.add_argument('--margin-b', type=float, default=0.0, help='')
-  parser.add_argument('--margin-t', type=float, default=0.0, help='')
+  parser.add_argument('--margin-t', type=float, default=1.2, help='')
   parser.add_argument('--easy-margin', type=int, default=0, help='')
   parser.add_argument('--margin', type=int, default=4, help='margin for sphere')
   parser.add_argument('--beta', type=float, default=1000., help='param for sphere')
