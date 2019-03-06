@@ -1,4 +1,6 @@
-
+git clone https://github.com/deepinsight/insightface
+add sv-arc-softmax(loss type == 8)
+reference 《Support Vector Guided Softmax Loss for Face Recognition》
 # InsightFace: 2D and 3D Face Analysis Project
 
 By Jia Guo and [Jiankang Deng](https://jiankangdeng.github.io/)
